@@ -96,7 +96,7 @@ async function getItemDetailsById(itemId) {
 async function getOneHour(itemId) {
     try {
         const response = await fetch(onehr);
-        const response2 = await fetch('https://prices.runescape.wiki/api/v1/osrs/timeseries?timestep=5m&id=2');
+        const response2 = await fetch('https://prices.runescape.wiki/api/v1/osrs/timeseries?timestep=5m&id=' + itemId);
 
         if (response.ok) {
             const data = await response.json();
