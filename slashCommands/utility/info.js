@@ -1,3 +1,10 @@
+//To Do: Find accurate way to do averages and WHERE these datasources come from. 
+//Make latest prices run every 60 seconds.
+//Compare latest prices against avg1hr and 12hr to detect and message what is best to invest in.
+//Graph view.
+//Implement GE Tax.
+//Build in long term and short term trend list.
+
 const { ApplicationCommandType, EmbedBuilder } = require('discord.js');
 const fetch = require('node-fetch');
 
@@ -240,7 +247,8 @@ module.exports = {
                         //Max profit = 12hr Average - (Instabuy or Instasell) usually lowest, rounded down. Then apply tax. 
                         const embed = new EmbedBuilder()
                         .setTitle(`${itemDetails.name} - ID: ${itemId}`)
-                        .setDescription(`**Volume**: ${itemVolume.volume} | **Limit**: ${itemDetails.ge_limit}\n 
+                        .setDescription(`[Osrs.cloud](https://prices.osrs.cloud/item/${itemId}) | [Wiki](https://oldschool.runescape.wiki/w/Special:Lookup?type=item&id=${itemId}) | [Price](https://prices.runescape.wiki/osrs/item/${itemId})\n
+                        **Volume**: ${itemVolume.volume} | **Limit**: ${itemDetails.ge_limit}\n 
                         **Max Profit**: ${Math.abs((itemLatest.high-itemLatest.low)*itemDetails.ge_limit)} \n
                         **GE**: ${officialGE.currentPrice} \n
                         **12hr**: ${twelveHour.avg} | **1hr**: ${oneHour.avg} \n \n
