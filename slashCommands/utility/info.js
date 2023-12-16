@@ -1,4 +1,3 @@
-//https://runescape.wiki/w/Application_programming_interface
 const { ApplicationCommandType, EmbedBuilder } = require('discord.js');
 const fetch = require('node-fetch');
 
@@ -6,6 +5,7 @@ const pricesApiUrl = 'https://prices.runescape.wiki/api/v1/osrs/latest';
 const mappingApiUrl = 'https://prices.runescape.wiki/api/v1/osrs/mapping';
 const volumesApiUrl = 'https://prices.runescape.wiki/api/v1/osrs/volumes';
 const onehr = 'https://prices.runescape.wiki/api/v1/osrs/1h';
+const officialGEOldSchoolApi = "https://secure.runescape.com/m=itemdb_oldschool/api/catalogue/detail.json?item="
 
 // Helper function to get item details by ID using the mapping endpoint
 async function getLatestPrices(itemId) {
@@ -180,6 +180,28 @@ async function getItemVolume(itemId) {
         return null;
     }
 }
+async function getOfficialGEStats(itemId) {
+    try {
+        const response = await fetch(officialGEOldSchoolApi+itemId);
+
+        if (response.ok) {
+            const dataset = await response.json();
+
+                    return {
+                        'currentPrice': dataset.item.current.price,
+                        'trend30': dataset.item.day30.change,
+                        'trend90' : dataset.item.day90.change,
+                        'trend180' : dataset.item.day180.change
+                    };
+                } else {
+                    console.error(`Error: Item ID ${itemId} not found in the API response.`);
+                    return null;
+                }
+            }  catch (error) {
+        console.error(`An error occurred during the request: ${error.message}`);
+        return null;
+    }
+}
 
 // Function to convert UNIX timestamp to a readable format
 function convert_unix_timestamp(timestamp) {
@@ -207,23 +229,24 @@ module.exports = {
             const itemVolume = await getItemVolume(itemId);
             const itemLatest = await getLatestPrices(itemId);
             const oneHour = await getOneHour(itemId);
-            const twelveHour = await getTwelveHour(itemId)
+            const twelveHour = await getTwelveHour(itemId);
+            const officialGE = await getOfficialGEStats(itemId);
 
             const icon_filename = itemDetails["name"].replace(/\ /g, '_').replace(/\(/g, '%28').replace(/\)/g, '%29');
             const image_url = `https://oldschool.runescape.wiki/images/${icon_filename}_detail.png?7263b`;
             //console.log(image_url);
 
                         // Send the information to the Discord channel using an embed
+                        //Max profit = 12hr Average - (Instabuy or Instasell) usually lowest, rounded down. Then apply tax. 
                         const embed = new EmbedBuilder()
                         .setTitle(`${itemDetails.name} - ID: ${itemId}`)
                         .setDescription(`**Volume**: ${itemVolume.volume} | **Limit**: ${itemDetails.ge_limit}\n 
                         **Max Profit**: ${Math.abs((itemLatest.high-itemLatest.low)*itemDetails.ge_limit)} \n
-                        **GE**: something here \n
+                        **GE**: ${officialGE.currentPrice} \n
                         **12hr**: ${twelveHour.avg} | **1hr**: ${oneHour.avg} \n \n
                         **Insta Buy**: ${itemLatest.high} <t:${itemLatest.hight}:R> \n
                         **Insta Sell**: ${itemLatest.low} <t:${itemLatest.lowt}:R> \n
-                        
-                        
+
                         ` )
                         .setColor('#03fcdb')
                         .setThumbnail(image_url)
