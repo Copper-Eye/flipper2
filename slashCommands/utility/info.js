@@ -1,3 +1,4 @@
+//https://runescape.wiki/w/Application_programming_interface
 const { ApplicationCommandType, EmbedBuilder } = require('discord.js');
 const fetch = require('node-fetch');
 
