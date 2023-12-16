@@ -4,6 +4,7 @@
 //Graph view.
 //Implement GE Tax.
 //Build in long term and short term trend list.
+//CORRECT FORMULA FOR MAX PROFIT IS {highestOf(1hr or 12hr)-lowestOf(latest instabuy or latest instasell)*limit}
 
 const { ApplicationCommandType, EmbedBuilder } = require('discord.js');
 const fetch = require('node-fetch');
@@ -95,21 +96,33 @@ async function getItemDetailsById(itemId) {
 async function getOneHour(itemId) {
     try {
         const response = await fetch(onehr);
+        const response2 = await fetch('https://prices.runescape.wiki/api/v1/osrs/timeseries?timestep=5m&id=2');
 
         if (response.ok) {
             const data = await response.json();
-
+            const data2 = await response2.json();
             // Check if 'data' field exists and has at least one element
             if ('data' in data && data['data']) {
                 // Check if the specified itemId exists in 'data'
                 if (itemId in data['data']) {
                     const item_info = data['data'][itemId];
-                    console.log(item_info);
+                    const first12Entries = data2.data.slice(0, 12).filter(entry => entry.avgHighPrice !== null && entry.avgLowPrice !== null);
+                    // Calculate the average for (avgHighPrice - avgLowPrice)/2 for each entry
+                    const cumulativeSum = first12Entries.reduce((acc, entry) => {
+                        return acc.concat((acc.length > 0 ? acc[acc.length - 1] : 0) + (entry.avgHighPrice + entry.avgLowPrice)/2);
+                      }, []);
+                      const overallAverage = cumulativeSum[cumulativeSum.length - 1] / cumulativeSum.length;
 
+                    console.log(item_info);
+                    console.log(first12Entries);
+                    console.log(cumulativeSum);
+                    console.log(overallAverage);
+                    console.log(Math.floor((item_info.avgHighPrice + item_info.avgLowPrice)/2));
                     // Perform further actions with itemHighPrice and itemLowPrice
                     // For example, return them or use them in your application
                     return {
-                        'avg': Math.floor((item_info.avgHighPrice + item_info.avgLowPrice)/2)
+                        'avg': Math.floor((item_info.avgHighPrice + item_info.avgLowPrice)/2),
+                        'avgfivetwelve': Math.floor(overallAverage)
                     };
                 } else {
                     console.error(`Error: Item ID ${itemId} not found in the API response.`);
@@ -150,8 +163,8 @@ const avgHighPriceAverage = avgHighPrices.reduce((sum, value) => sum + value, 0)
 // Calculate the average for the avgLowPrices
 const avgLowPriceAverage = avgLowPrices.reduce((sum, value) => sum + value, 0) / avgLowPrices.length;
 
-console.log("Average for the avgHighPrices:", avgHighPriceAverage);
-console.log("Average for the avgLowPrices:", avgLowPriceAverage);
+console.log("12hr avgHighPrices:", avgHighPriceAverage);
+console.log("12hr avgLowPrices:", avgLowPriceAverage);
                     return {
                         'avg': Math.floor(avgHighPriceAverage)
                     };
