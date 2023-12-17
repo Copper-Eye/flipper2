@@ -1,6 +1,7 @@
 const { ActivityType } = require('discord.js');
 const client = require('..');
 const chalk = require('chalk');
+const { runScripts } = require('../slashCommands/utility/test.js');
 
 client.on("ready", () => {
 	const activities = [
@@ -27,5 +28,8 @@ client.on("ready", () => {
 		client.user.setStatus(status[s])
 		s++;
 	}, 30000);
+	setInterval(() => {
+	//	runScripts();
+	}, 60000);
 	console.log(chalk.red(`Logged in as ${client.user.tag}!`))
 });

@@ -254,6 +254,7 @@ function findChangedEntriesWithThreshold(latestOld, latest, thresholdPercentage)
     }
 } 
   module.exports = {
+    runScripts,
     name: 'test',
     description: 'Check info of an OSRS item.',
     type: ApplicationCommandType.ChatInput,
