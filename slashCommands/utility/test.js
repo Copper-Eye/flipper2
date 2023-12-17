@@ -57,12 +57,15 @@ function saveDatasetToFile(dataset, filename) {
     }
   
     // Convert the dataset to a JSON string
-    const datasetString = JSON.stringify(dataset);
+    const compress = minifyDataset(dataset);
   
     // Write the JSON string to a file
-    fs.writeFileSync(filename, datasetString);
+    fs.writeFileSync(filename, compress);
   
     console.log(`Dataset saved to file: ${filename}`);
+  }
+  function minifyDataset(dataset) {
+    return JSON.stringify(dataset).replace(/\s/g, ''); // Removes all whitespace characters
   }
   function readLocalJSON(filename) {
     try {
