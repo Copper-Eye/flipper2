@@ -224,6 +224,14 @@ function formatNumber(number) {
  
     return intNumber;
   }
+  function HighestOf(x, y) {
+    return (x > y) ? x : y;
+}
+
+// Function to find the lowest of two numbers
+function LowestOf(x, y) {
+    return (x < y) ? x : y;
+}
 module.exports = {
     name: 'info',
     description: 'Check info of an OSRS item.',
@@ -253,12 +261,12 @@ module.exports = {
             //console.log(image_url);
 
                         // Send the information to the Discord channel using an embed
-                        //Max profit = 12hr Average - (Instabuy or Instasell) usually lowest, rounded down. Then apply tax.
+                        //Max profit = Highest( 12hr Average 1hr avg) - lowerst(Instabuy or Instasell) time limit usually lowest, rounded down. Then apply tax.
                         const embed = new EmbedBuilder()
                         .setTitle(`${itemDetails.name} - ID: ${itemId}`)
                         .setDescription(`[Osrs.cloud](https://prices.osrs.cloud/item/${itemId}) | [Wiki](https://oldschool.runescape.wiki/w/Special:Lookup?type=item&id=${itemId}) | [Price](https://prices.runescape.wiki/osrs/item/${itemId})\n
                         **Volume**: ${formatNumber(itemVolume.volume)} | **Limit**: ${formatNumber(itemDetails.ge_limit)}\n 
-                        **Max Profit**: ${formatNumber(Math.abs((itemLatest.high-itemLatest.low)*itemDetails.ge_limit))} \n
+                        **Max Profit**: ${formatNumber(Math.abs((HighestOf(twelveHour.avg, oneHour.avg) - LowestOf(itemLatest.high, itemLatest.low))*itemDetails.ge_limit))} \n
                         **GE**: ${officialGE.currentPrice} \n
                         **12hr**: ${formatNumber(twelveHour.avg)} | **1hr**: ${formatNumber(oneHour.avg)} \n \n
                         **Insta Buy**: ${formatNumber(itemLatest.high)} <t:${(itemLatest.hight)}:R> \n
