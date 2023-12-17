@@ -92,51 +92,41 @@ async function getItemDetailsById(itemId) {
         return null;
     }
 }
-
+function extractOneHrPrices(dataset) {
+    let extractedPrices = { avgHighPrice: null, avgLowPrice: null };
+    
+    for (let i = dataset.data.length - 1; i >= 0; i--) {
+      const entry = dataset.data[i];
+      
+      if (extractedPrices.avgHighPrice === null && entry.avgHighPrice !== null) {
+        extractedPrices.avgHighPrice = entry.avgHighPrice;
+      }
+      
+      if (extractedPrices.avgLowPrice === null && entry.avgLowPrice !== null) {
+        extractedPrices.avgLowPrice = entry.avgLowPrice;
+      }
+      
+      if (extractedPrices.avgHighPrice !== null && extractedPrices.avgLowPrice !== null) {
+        break; // Exit the loop if both values are found
+      }
+    }
+    return Math.floor((extractedPrices.avgHighPrice+extractedPrices.avgLowPrice)/2);
+  }
+//satisfied with this solution
 async function getOneHour(itemId) {
     try {
-        const response = await fetch(onehr);
-        const response2 = await fetch('https://prices.runescape.wiki/api/v1/osrs/timeseries?timestep=5m&id=' + itemId);
+        const response2 = await fetch('https://prices.runescape.wiki/api/v1/osrs/timeseries?timestep=1h&id=' + itemId);
 
-        if (response.ok) {
-            const data = await response.json();
+        if (response2.ok) {
             const data2 = await response2.json();
-            // Check if 'data' field exists and has at least one element
-            if ('data' in data && data['data']) {
-                // Check if the specified itemId exists in 'data'
-                if (itemId in data['data']) {
-                    const item_info = data['data'][itemId];
-                    const first12Entries = data2.data.slice(0, 12).filter(entry => entry.avgHighPrice !== null && entry.avgLowPrice !== null);
-                    // Calculate the average for (avgHighPrice - avgLowPrice)/2 for each entry
-                    const cumulativeSum = first12Entries.reduce((acc, entry) => {
-                        return acc.concat((acc.length > 0 ? acc[acc.length - 1] : 0) + (entry.avgHighPrice + entry.avgLowPrice)/2);
-                      }, []);
-                      const overallAverage = cumulativeSum[cumulativeSum.length - 1] / cumulativeSum.length;
-
-                    console.log(item_info);
-                    console.log(first12Entries);
-                    console.log(cumulativeSum);
-                    console.log(overallAverage);
-                    console.log(Math.floor((item_info.avgHighPrice + item_info.avgLowPrice)/2));
-                    // Perform further actions with itemHighPrice and itemLowPrice
-                    // For example, return them or use them in your application
                     return {
-                        'avg': Math.floor((item_info.avgHighPrice + item_info.avgLowPrice)/2),
-                        'avgfivetwelve': Math.floor(overallAverage)
+                        'avg': extractOneHrPrices(data2)
                     };
                 } else {
                     console.error(`Error: Item ID ${itemId} not found in the API response.`);
                     return null;
                 }
-            } else {
-                console.error('Error: No data found in the API response.');
-                return null;
-            }
-        } else {
-            console.error(`Error fetching OSRS prices. Status Code: ${response.status}`);
-            return null;
-        }
-    } catch (error) {
+            } catch (error) {
         console.error(`An error occurred during the request: ${error.message}`);
         return null;
     }
@@ -148,26 +138,24 @@ async function getTwelveHour(itemId) {
 
         if (response.ok) {
             const dataset = await response.json();
-            // Extract the first 12 entries
-            const first12Entries = dataset.data.slice(0, 12);
-// Filter out entries with null values for avgHighPrice or avgLowPrice
-const filteredEntries = first12Entries.filter(entry => entry.avgHighPrice !== null && entry.avgLowPrice !== null);
-
-// Extract the avgHighPrices and avgLowPrices from the filtered entries
-const avgHighPrices = filteredEntries.map(entry => entry.avgHighPrice);
-const avgLowPrices = filteredEntries.map(entry => entry.avgLowPrice);
-
-// Calculate the average for the avgHighPrices
-const avgHighPriceAverage = avgHighPrices.reduce((sum, value) => sum + value, 0) / avgHighPrices.length;
-
-// Calculate the average for the avgLowPrices
-const avgLowPriceAverage = avgLowPrices.reduce((sum, value) => sum + value, 0) / avgLowPrices.length;
-
-console.log("12hr avgHighPrices:", avgHighPriceAverage);
-console.log("12hr avgLowPrices:", avgLowPriceAverage);
-                    return {
-                        'avg': Math.floor(avgHighPriceAverage)
-                    };
+            // Extract the last/recent 12 entries. Filter out nulls so 12 always returned. Calculate average overall then floor.
+            const last12ValidEntries = dataset.data
+            .filter(entry => entry.avgHighPrice !== null && entry.avgLowPrice !== null)
+            .slice(-12);
+          
+          const cumulativeSum = last12ValidEntries.reduce((acc, entry) => {
+            const avgLowPrice = entry.avgLowPrice !== null ? entry.avgLowPrice : 0;
+            return acc.concat((acc.length > 0 ? acc[acc.length - 1] : 0) + (entry.avgHighPrice + avgLowPrice) / 2);
+          }, []);
+          
+          //console.log(last12ValidEntries);
+          
+          const overallAverage = cumulativeSum[cumulativeSum.length - 1] / cumulativeSum.length;
+          
+          return {
+            'avg': Math.floor(overallAverage)
+          };
+          
                 } else {
                     console.error(`Error: Item ID ${itemId} not found in the API response.`);
                     return null;
@@ -188,7 +176,7 @@ async function getItemVolume(itemId) {
             // For example, you can access a specific item's volume like this:
             // Return the entire data object or specific information as needed
             return {
-                'volume': data.data[itemId] || 'Unknown',
+                'volume': (data.data[itemId]) || 'Unknown',
                 'lastUpdated': convert_unix_timestamp(data.timestamp) || 'Unknown'
             }
         } else {
@@ -206,7 +194,7 @@ async function getOfficialGEStats(itemId) {
 
         if (response.ok) {
             const dataset = await response.json();
-
+                    console.log(dataset);
                     return {
                         'currentPrice': dataset.item.current.price,
                         'trend30': dataset.item.day30.change,
@@ -227,7 +215,15 @@ async function getOfficialGEStats(itemId) {
 function convert_unix_timestamp(timestamp) {
     return new Date(timestamp * 1000).toUTCString();
 }
-
+function formatNumber(number) {
+    // Convert the number to a string
+    let intNumber = number.toString();
+  
+    // Insert commas for thousands, millions, etc.
+    intNumber = intNumber.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+ 
+    return intNumber;
+  }
 module.exports = {
     name: 'info',
     description: 'Check info of an OSRS item.',
@@ -257,25 +253,22 @@ module.exports = {
             //console.log(image_url);
 
                         // Send the information to the Discord channel using an embed
-                        //Max profit = 12hr Average - (Instabuy or Instasell) usually lowest, rounded down. Then apply tax. 
+                        //Max profit = 12hr Average - (Instabuy or Instasell) usually lowest, rounded down. Then apply tax.
                         const embed = new EmbedBuilder()
                         .setTitle(`${itemDetails.name} - ID: ${itemId}`)
                         .setDescription(`[Osrs.cloud](https://prices.osrs.cloud/item/${itemId}) | [Wiki](https://oldschool.runescape.wiki/w/Special:Lookup?type=item&id=${itemId}) | [Price](https://prices.runescape.wiki/osrs/item/${itemId})\n
-                        **Volume**: ${itemVolume.volume} | **Limit**: ${itemDetails.ge_limit}\n 
-                        **Max Profit**: ${Math.abs((itemLatest.high-itemLatest.low)*itemDetails.ge_limit)} \n
+                        **Volume**: ${formatNumber(itemVolume.volume)} | **Limit**: ${formatNumber(itemDetails.ge_limit)}\n 
+                        **Max Profit**: ${formatNumber(Math.abs((itemLatest.high-itemLatest.low)*itemDetails.ge_limit))} \n
                         **GE**: ${officialGE.currentPrice} \n
-                        **12hr**: ${twelveHour.avg} | **1hr**: ${oneHour.avg} \n \n
-                        **Insta Buy**: ${itemLatest.high} <t:${itemLatest.hight}:R> \n
-                        **Insta Sell**: ${itemLatest.low} <t:${itemLatest.lowt}:R> \n
+                        **12hr**: ${formatNumber(twelveHour.avg)} | **1hr**: ${formatNumber(oneHour.avg)} \n \n
+                        **Insta Buy**: ${formatNumber(itemLatest.high)} <t:${(itemLatest.hight)}:R> \n
+                        **Insta Sell**: ${formatNumber(itemLatest.low)} <t:${(itemLatest.lowt)}:R> \n
 
                         ` )
                         .setColor('#03fcdb')
                         .setThumbnail(image_url)
                         .addFields(
-                            { name: 'Last Volume Update', value: `${itemVolume.lastUpdated}` },
                             { name: '\u200B', value: '\u200B' },
-                            { name: 'Insta Buy', value: `${itemLatest.high}`, inline: false },
-                            { name: 'Insta Sell', value: `${itemLatest.low}`, inline: false },
                         )
                         .setTimestamp();
                         return interaction.reply({ embeds: [embed]})
