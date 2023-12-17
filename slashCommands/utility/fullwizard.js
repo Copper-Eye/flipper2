@@ -9,9 +9,7 @@ const volumesApiUrl = 'https://prices.runescape.wiki/api/v1/osrs/volumes';
 
 
 //Some things it needs to do...
-//From Latest Price API, needs pull data then do a for loop with each ITEM id.
-//Inside this for loop, we need to compare against https://prices.runescape.wiki/api/v1/osrs/5m, https://prices.runescape.wiki/api/v1/osrs/1h
-//Can also use https://prices.runescape.wiki/api/v1/osrs/1h?timestamp=1615734000. Timestamp must be divisble by 3600. To find data from previous hour. Get current time, convert to UNIX. Minus 3600 then modulo % 3600. Or 7200 for 2 hours etc.
+//DEFINE LIMITS LOCALLY to reduce number of calls needed. Limits won't change and if they do then I will make a command to update ItemLimits.json.
 
 function HighestOf(x, y) {
     return (x > y) ? x : y;
@@ -80,6 +78,46 @@ function saveDatasetToFile(dataset, filename) {
       // Handle the error as needed
       return null;
     }
+  }
+  async function getOneHourWithAverage(itemId) {
+    try {
+      const response = await fetch('https://prices.runescape.wiki/api/v1/osrs/timeseries?timestep=1h&id=' + itemId);
+  
+      if (response.ok) {
+        const data = await response.json();
+        const avg = extractOneHrPrices(data);
+  
+        return { avg };
+      } else {
+        console.error(`Error: Item ID ${itemId} not found in the API response.`);
+        return null;
+      }
+    } catch (error) {
+      console.error(`An error occurred during the request: ${error.message}`);
+      return null;
+    }
+  }
+  
+  function extractOneHrPrices(dataset) {
+    let extractedPrices = { avgHighPrice: null, avgLowPrice: null };
+  
+    for (let i = dataset.data.length - 1; i >= 0; i--) {
+      const entry = dataset.data[i];
+  
+      if (extractedPrices.avgHighPrice === null && entry.avgHighPrice !== null) {
+        extractedPrices.avgHighPrice = entry.avgHighPrice;
+      }
+  
+      if (extractedPrices.avgLowPrice === null && entry.avgLowPrice !== null) {
+        extractedPrices.avgLowPrice = entry.avgLowPrice;
+      }
+  
+      if (extractedPrices.avgHighPrice !== null && extractedPrices.avgLowPrice !== null) {
+        break; // Exit the loop if both values are found
+      }
+    }
+  
+    return Math.floor((extractedPrices.avgHighPrice + extractedPrices.avgLowPrice) / 2);
   }
 // Helper function to get the changes between two entries
 function getChanges(entryOld, entryLatest) {
@@ -233,6 +271,7 @@ function findChangedEntriesWithThreshold(latestOld, latest, thresholdPercentage)
                     // Your code for each iteration, for example:
                     console.log(`Processing entry with ID: ${id}`);
                     // Add your logic here based on the ID or any other properties
+                    //Make function for each ID to get info and calculate profit.
                   }
               } else {
                 // Handle the case where runScripts() did not return the expected result
