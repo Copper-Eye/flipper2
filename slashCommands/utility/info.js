@@ -1,10 +1,9 @@
-//To Do: Find accurate way to do averages and WHERE these datasources come from. 
-//Make latest prices run every 60 seconds.
-//Compare latest prices against avg1hr and 12hr to detect and message what is best to invest in.
-//Graph view.
-//Implement GE Tax.
+//Graph view data for 1D and 7D.
+//Run latest every minute. If latest value is a high differential to the 5m before previous then flag as dump and automatically send notif.
+//Decide if its worth creating local database to store values to.
+//Set up margin % and other info about item.
+//Implement Tax.
 //Build in long term and short term trend list.
-//CORRECT FORMULA FOR MAX PROFIT IS {highestOf(1hr or 12hr)-lowestOf(latest instabuy or latest instasell)*limit}
 
 const { ApplicationCommandType, EmbedBuilder } = require('discord.js');
 const fetch = require('node-fetch');
