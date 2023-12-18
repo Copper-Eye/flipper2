@@ -1,19 +1,7 @@
-const { EmbedBuilder } = require('discord.js');
 const fetch = require('node-fetch');
 const fs = require('fs');
 const pricesApiUrl = 'https://prices.runescape.wiki/api/v1/osrs/latest';
-const { wrapper } = require('../events/customFunctions.js')
-
-
-//Some things it needs to do...
-function HighestOf(x, y) {
-    return (x > y) ? x : y;
-}
-
-// Function to find the lowest of two numbers
-function LowestOf(x, y) {
-    return (x < y) ? x : y;
-}
+const { wrapper } = require('./messageWrapper.js')
 
 async function getLatest() {
     try {
@@ -43,25 +31,6 @@ async function getLatest() {
       };
     }
 } 
-function saveDatasetToFile(dataset, filename) {
-    // Check if 'data' property exists in the dataset
-    if (!dataset.data) {
-      console.error('Error: No "data" property found in the dataset');
-      // Handle the error as needed
-      return;
-    }
-  
-    // Convert the dataset to a JSON string
-    const compress = minifyDataset(dataset);
-  
-    // Write the JSON string to a file
-    fs.writeFileSync(filename, compress);
-  
-    console.log(`Dataset saved to file: ${filename}`);
-  }
-  function minifyDataset(dataset) {
-    return JSON.stringify(dataset).replace(/\s/g, ''); // Removes all whitespace characters
-  }
   function readLocalJSON(filename) {
     try {
       // Read the contents of the JSON file
@@ -77,46 +46,8 @@ function saveDatasetToFile(dataset, filename) {
       return null;
     }
   }
-  async function getOneHourWithAverage(itemId) {
-    try {
-      const response = await fetch('https://prices.runescape.wiki/api/v1/osrs/timeseries?timestep=1h&id=' + itemId);
-  
-      if (response.ok) {
-        const data = await response.json();
-        const avg = extractOneHrPrices(data);
-  
-        return { avg };
-      } else {
-        console.error(`Error: Item ID ${itemId} not found in the API response.`);
-        return null;
-      }
-    } catch (error) {
-      console.error(`An error occurred during the request: ${error.message}`);
-      return null;
-    }
-  }
-  
-  function extractOneHrPrices(dataset) {
-    let extractedPrices = { avgHighPrice: null, avgLowPrice: null };
-  
-    for (let i = dataset.data.length - 1; i >= 0; i--) {
-      const entry = dataset.data[i];
-  
-      if (extractedPrices.avgHighPrice === null && entry.avgHighPrice !== null) {
-        extractedPrices.avgHighPrice = entry.avgHighPrice;
-      }
-  
-      if (extractedPrices.avgLowPrice === null && entry.avgLowPrice !== null) {
-        extractedPrices.avgLowPrice = entry.avgLowPrice;
-      }
-  
-      if (extractedPrices.avgHighPrice !== null && extractedPrices.avgLowPrice !== null) {
-        break; // Exit the loop if both values are found
-      }
-    }
-  
-    return Math.floor((extractedPrices.avgHighPrice + extractedPrices.avgLowPrice) / 2);
-  }
+
+
 // Helper function to get the changes between two entries
 function getChanges(entryOld, entryLatest) {
     // Compare the values you want to get changes for
@@ -224,6 +155,16 @@ function findChangedEntriesWithThreshold(latestOld, latest, thresholdPercentage)
   
     return false;
   }
+  async function processValidIds(validIds, channel) {
+    // Use Promise.all to run wrapper function for each validId concurrently
+    const embeds = await Promise.all(validIds.map(async (validId) => {
+      const embed = await wrapper(validId);
+      return embed;
+    }));
+  
+    // Send the resulting embeds to the channel
+    channel.send({ embeds });
+  }
   async function runScripts() {
       try {
         // Make a GET request to get additional item details
@@ -231,7 +172,7 @@ function findChangedEntriesWithThreshold(latestOld, latest, thresholdPercentage)
         const latestOld = readLocalJSON('LatestOld.json');
         const thresholdPercentage = 50;
         const changedEntries = findChangedEntriesWithThreshold(latestOld, latest, thresholdPercentage);
-        setTimeout(saveDatasetToFile, 5000, latest, "LatestOld.json"); // Save entries
+       // setTimeout(saveDatasetToFile, 5000, latest, "LatestOld.json"); // Save entries
         return {
             watchIds: changedEntries,
             success: true,
@@ -274,11 +215,8 @@ async function oneGP(channel){
             const validIDs = oneGpDump(runningScripts.watchIds);
             if (validIDs.length > 0) {
                 channel.send(`New IDs to check: ${validIDs}`);
-                // Add your logic here based on the ID or any other properties
-                // Make function for each ID to get info and calculate profit.
-            } else {
-                //do nothing
-                channel.send({ embeds: [wrapper(2)]});
+                await processValidIds(validIDs, channel);
+
             }
         }
     }catch (error) {

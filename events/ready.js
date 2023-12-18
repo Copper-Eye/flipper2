@@ -2,6 +2,7 @@ const { ActivityType } = require('discord.js');
 const client = require('..');
 const chalk = require('chalk');
 const { oneGP } = require('../events/backendMagic.js');
+const { saveLocalDB } = require('../events/storeLocalDb.js');
 
 
 client.on("ready", () => {
@@ -33,6 +34,9 @@ client.on("ready", () => {
 	}, 30000);
 	setInterval(() => {
 	oneGP(oneGpChannel);
-	}, 30000);
+	}, 20000);
+	setInterval(() => {
+		saveLocalDB();
+		}, 21000);
 	console.log(chalk.red(`Logged in as ${client.user.tag}!`))
 });
