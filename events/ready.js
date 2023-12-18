@@ -34,9 +34,6 @@ client.on("ready", () => {
 	}, 30000);
 	setInterval(() => {
 	oneGP(oneGpChannel);
-	}, 20000);
-	setInterval(() => {
-		saveLocalDB();
-		}, 21000);
+	}, 30000);
 	console.log(chalk.red(`Logged in as ${client.user.tag}!`))
 });

@@ -3,6 +3,9 @@ const fs = require('fs');
 const pricesApiUrl = 'https://prices.runescape.wiki/api/v1/osrs/latest';
 const { wrapper } = require('./messageWrapper.js')
 
+let latestDataInMemory = null;
+
+
 async function getLatest() {
     try {
       // Make a GET request to the main OSRS prices API
@@ -11,7 +14,10 @@ async function getLatest() {
       // Check if the request was successful (status code 200)
       if (response.ok) {
         const data = await response.json();
-  
+      
+        if(!latestDataInMemory){
+          latestDataInMemory = data;
+        }
         // Return the data directly
         return data;
       } else {
@@ -46,7 +52,6 @@ async function getLatest() {
       return null;
     }
   }
-
 
 // Helper function to get the changes between two entries
 function getChanges(entryOld, entryLatest) {
@@ -155,6 +160,9 @@ function findChangedEntriesWithThreshold(latestOld, latest, thresholdPercentage)
   
     return false;
   }
+  function updateLocal(dataset){
+    latestDataInMemory = dataset;
+  }
   async function processValidIds(validIds, channel) {
     // Use Promise.all to run wrapper function for each validId concurrently
     const embeds = await Promise.all(validIds.map(async (validId) => {
@@ -168,11 +176,12 @@ function findChangedEntriesWithThreshold(latestOld, latest, thresholdPercentage)
   async function runScripts() {
       try {
         // Make a GET request to get additional item details
-        const latest = await getLatest();
-        const latestOld = readLocalJSON('LatestOld.json');
-        const thresholdPercentage = 50;
+        let latest = await getLatest();
+        let latestOld = await latestDataInMemory;
+          console.log(findChangedEntriesWithThreshold(latestOld, latest, 2));
+        const thresholdPercentage = 5;
         const changedEntries = findChangedEntriesWithThreshold(latestOld, latest, thresholdPercentage);
-       // setTimeout(saveDatasetToFile, 5000, latest, "LatestOld.json"); // Save entries
+        setTimeout(updateLocal, 5000, latest); // Save entries after 5 seconds.
         return {
             watchIds: changedEntries,
             success: true,
