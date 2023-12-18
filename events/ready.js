@@ -1,7 +1,8 @@
 const { ActivityType } = require('discord.js');
 const client = require('..');
 const chalk = require('chalk');
-const { runScripts } = require('../slashCommands/utility/test.js');
+const { oneGP } = require('../events/backendMagic.js');
+
 
 client.on("ready", () => {
 	const activities = [
@@ -15,6 +16,8 @@ client.on("ready", () => {
 		'dnd',
 		'idle'
 	];
+	const oneGpChannel = client.channels.cache.get('1186319879532453998');
+
 	let i = 0;
 	setInterval(() => {
 		if(i >= activities.length) i = 0
@@ -29,7 +32,7 @@ client.on("ready", () => {
 		s++;
 	}, 30000);
 	setInterval(() => {
-	//	runScripts();
-	}, 60000);
+	oneGP(oneGpChannel);
+	}, 30000);
 	console.log(chalk.red(`Logged in as ${client.user.tag}!`))
 });

@@ -1,16 +1,11 @@
-const { ApplicationCommandType, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 const fetch = require('node-fetch');
 const fs = require('fs');
-
 const pricesApiUrl = 'https://prices.runescape.wiki/api/v1/osrs/latest';
-const mappingApiUrl = 'https://prices.runescape.wiki/api/v1/osrs/mapping';
-const volumesApiUrl = 'https://prices.runescape.wiki/api/v1/osrs/volumes';
-
+const { wrapper } = require('../events/customFunctions.js')
 
 
 //Some things it needs to do...
-//DEFINE LIMITS LOCALLY to reduce number of calls needed. Limits won't change and if they do then I will make a command to update ItemLimits.json.
-
 function HighestOf(x, y) {
     return (x > y) ? x : y;
 }
@@ -134,13 +129,6 @@ function getChanges(entryOld, entryLatest) {
     if (entryOld.low !== entryLatest.low) {
       changes.low = entryLatest.low;
     }
-    if (entryOld.highTime !== entryLatest.highTime) {
-      changes.highTime = entryLatest.highTime;
-    }
-  
-    if (entryOld.lowTime !== entryLatest.lowTime) {
-      changes.lowTime = entryLatest.lowTime;
-    }
   
     return changes;
   }
@@ -211,7 +199,7 @@ function findChangedEntriesWithThreshold(latestOld, latest, thresholdPercentage)
             changedEntries.push({
               id,
               previousValues: entryOld,
-     //         currentValues: entryLatest,
+              currentValues: entryLatest,
               changes,
             });
           }
@@ -236,34 +224,14 @@ function findChangedEntriesWithThreshold(latestOld, latest, thresholdPercentage)
   
     return false;
   }
-    function oneGpDump(dataset) {
-      const result = [];
-
-      dataset.forEach(data => {
-          // Check if 'changes' is defined and has 'high' or 'low' equal to 1
-          if (
-              data.changes &&
-              typeof data.changes === 'object' &&
-              ('high' in data.changes && data.changes.high === 1) ||
-              ('low' in data.changes && data.changes.low === 1)
-          ) {
-              // Add the ID to the result array
-              result.push(data.id);
-          }
-      });
-  
-      return result;
-  }
   async function runScripts() {
       try {
         // Make a GET request to get additional item details
         const latest = await getLatest();
         const latestOld = readLocalJSON('LatestOld.json');
-        const thresholdPercentage = 5;
+        const thresholdPercentage = 50;
         const changedEntries = findChangedEntriesWithThreshold(latestOld, latest, thresholdPercentage);
-        //console.log('Changed Entries:', changedEntries);
-        //overwrite new changes
-        setTimeout(saveDatasetToFile, 5000, latest, "LatestOld.json"); // Hello, John
+        setTimeout(saveDatasetToFile, 5000, latest, "LatestOld.json"); // Save entries
         return {
             watchIds: changedEntries,
             success: true,
@@ -278,44 +246,47 @@ function findChangedEntriesWithThreshold(latestOld, latest, thresholdPercentage)
       };
     }
 } 
-  module.exports = {
-    runScripts,
-    name: 'test',
-    description: 'Check info of an OSRS item.',
-    type: ApplicationCommandType.ChatInput,
-    options: [
-    ],
-    run: async (client, interaction) => {
-        console.log("Input /test");
-        try {
-            // Make a GET request to get additional item details
-            const runningScripts = await runScripts();
+function oneGpDump(dataset) {
+    const result = [];
 
-            if (runningScripts) {
-                const data = runningScripts.watchIds;
-                console.log(oneGpDump(data));
-                // Now you can use the value of watchIds in this function
+    dataset.forEach(data => {
+        // Check if 'changes' is defined and has 'high' or 'low' equal to 1
+        if (
+            data.changes &&
+            typeof data.changes === 'object' &&
+            ('high' in data.changes && data.changes.high === 1) ||
+            ('low' in data.changes && data.changes.low === 1)
+        ) {
+            // Add the ID to the result array
+            result.push(data.id);
 
-              } else {
-                // Handle the case where runScripts() did not return the expected result
-                console.error('Error: runScripts did not return the expected result');
-              }
-
-
-
-            const embed = new EmbedBuilder()
-                        .setTitle(`Outputting to console.`)
-                        .setDescription(`good luck
-                        ` )
-                        .setColor('#03fcdb')
-                        .addFields(
-                        )
-                        .setTimestamp();
-                        return interaction.reply({ embeds: [embed]})
-                    }
-         catch (error) {
-            console.error(`An error occurred: ${error.message}`);
-            await interaction.reply(`An error occurred: ${error.message}`);
         }
-    },
+    });
+
+    return result;
+}
+async function oneGP(channel){
+    try {
+        // Make a GET request to get additional item details
+        const runningScripts = await runScripts();
+
+        if (runningScripts) {
+            const validIDs = oneGpDump(runningScripts.watchIds);
+            if (validIDs.length > 0) {
+                channel.send(`New IDs to check: ${validIDs}`);
+                // Add your logic here based on the ID or any other properties
+                // Make function for each ID to get info and calculate profit.
+            } else {
+                //do nothing
+                channel.send({ embeds: [wrapper(2)]});
+            }
+        }
+    }catch (error) {
+    console.error(`An error occurred: ${error.message}`);
+}
+}
+
+
+  module.exports = {
+    oneGP,
 }

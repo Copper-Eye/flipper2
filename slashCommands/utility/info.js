@@ -7,11 +7,9 @@
 
 const { ApplicationCommandType, EmbedBuilder } = require('discord.js');
 const fetch = require('node-fetch');
+const fs = require('fs');
 
 const pricesApiUrl = 'https://prices.runescape.wiki/api/v1/osrs/latest';
-const mappingApiUrl = 'https://prices.runescape.wiki/api/v1/osrs/mapping';
-const volumesApiUrl = 'https://prices.runescape.wiki/api/v1/osrs/volumes';
-const onehr = 'https://prices.runescape.wiki/api/v1/osrs/1h';
 const officialGEOldSchoolApi = "https://secure.runescape.com/m=itemdb_oldschool/api/catalogue/detail.json?item="
 
 // Helper function to get item details by ID using the mapping endpoint
@@ -29,7 +27,7 @@ async function getLatestPrices(itemId) {
                 // Check if the specified itemId exists in 'data'
                 if (itemId in data['data']) {
                     const item_info = data['data'][itemId];
-                    console.log(item_info);
+                    //console.log(item_info);
 
                     // Perform further actions with itemHighPrice and itemLowPrice
                     // For example, return them or use them in your application
@@ -56,40 +54,40 @@ async function getLatestPrices(itemId) {
         return null;
     }
 }
-
-async function getItemDetailsById(itemId) {
+function readLocalJSON(filename) {
     try {
-        const response = await fetch(mappingApiUrl);
-        // Log the response status and text
-        console.log(`Mapping API Response Status: ${response.status}`);
-
-        if (response.ok) {
-            const data = await response.json();
-
-            for (const item of data) {
-                if (String(item.id) === itemId) {
-                    console.log('Found matching item:', item);
-                    return {
-                        'name': item.name || 'Unknown',
-                        'examine': item.examine || 'No examine information available',
-                        'members': item.members || false,
-                        'low_alch': item.lowalch || 'N/A',
-                        'high_alch': item.highalch || 'N/A',
-                        'ge_vaule': item.value || 'N/A',
-                        'ge_limit': item.limit || 'N/A',
-                        'icon': item.icon || 'N/A'
-                    };
-                }
-            }
-            return null;
-        } else {
-            console.error(`Error fetching item details: ${response.status}`);
-            return null;
-        }
+      // Read the contents of the JSON file
+      const fileContents = fs.readFileSync(filename, 'utf8');
+  
+      // Parse the JSON data
+      const jsonData = JSON.parse(fileContents);
+  
+      return jsonData;
     } catch (error) {
-        console.error(`Error fetching item details: ${error.message}`);
-        return null;
+      console.error(`Error reading or parsing JSON file: ${error.message}`);
+      // Handle the error as needed
+      return null;
     }
+  }
+  function getItemDetailsById(itemId) {
+        const masterList = readLocalJSON('masterList.json');
+
+        // Log masterList for debugging
+        for (const item of masterList) {
+            if (String(item.id) === itemId) {
+              //  console.log('Found matching item:', item);
+                return {
+                    'name': item.name,
+                    'members': item.members,
+                    'volume': item.volume,
+                    'low_alch': item.lowalch || 'N/A',
+                    'high_alch': item.highalch || 'N/A',
+                    'value': item.value || 'N/A',
+                    'limit': item.limit || 'N/A',
+                    'img_url': item.img_url || 'N/A',
+                };
+            }
+        }
 }
 function extractOneHrPrices(dataset) {
     let extractedPrices = { avgHighPrice: null, avgLowPrice: null };
@@ -164,29 +162,6 @@ async function getTwelveHour(itemId) {
         return null;
     }
 }
-    // Helper function to get item volume by ID using the volumes endpoint
-async function getItemVolume(itemId) {
-    try {
-        const response = await fetch(volumesApiUrl);
-        if (response.ok) {
-            const data = await response.json();
-            
-            // Access and process data as needed
-            // For example, you can access a specific item's volume like this:
-            // Return the entire data object or specific information as needed
-            return {
-                'volume': (data.data[itemId]) || 'Unknown',
-                'lastUpdated': convert_unix_timestamp(data.timestamp) || 'Unknown'
-            }
-        } else {
-            console.error(`Error fetching volumes: ${response.status}`);
-            return null;
-        }
-    } catch (error) {
-        console.error(`Error fetching volumes: ${error.message}`);
-        return null;
-    }
-}
 async function getOfficialGEStats(itemId) {
     try {
         const response = await fetch(officialGEOldSchoolApi+itemId);
@@ -248,32 +223,25 @@ module.exports = {
         console.log("Input /info itemId: " + itemId);
         try {
             // Make a GET request to get additional item details
-            const itemDetails = await getItemDetailsById(itemId);
-            const itemVolume = await getItemVolume(itemId);
             const itemLatest = await getLatestPrices(itemId);
             const oneHour = await getOneHour(itemId);
             const twelveHour = await getTwelveHour(itemId);
             const officialGE = await getOfficialGEStats(itemId);
-
-            const icon_filename = itemDetails["name"].replace(/\ /g, '_').replace(/\(/g, '%28').replace(/\)/g, '%29');
-            const image_url = `https://oldschool.runescape.wiki/images/${icon_filename}_detail.png?7263b`;
-            //console.log(image_url);
-
+            const itemDetails = getItemDetailsById(itemId);
                         // Send the information to the Discord channel using an embed
                         //Max profit = Highest( 12hr Average 1hr avg) - lowerst(Instabuy or Instasell) time limit usually lowest, rounded down. Then apply tax.
                         const embed = new EmbedBuilder()
                         .setTitle(`${itemDetails.name} - ID: ${itemId}`)
                         .setDescription(`[Osrs.cloud](https://prices.osrs.cloud/item/${itemId}) | [Wiki](https://oldschool.runescape.wiki/w/Special:Lookup?type=item&id=${itemId}) | [Price](https://prices.runescape.wiki/osrs/item/${itemId})\n
-                        **Volume**: ${formatNumber(itemVolume.volume)} | **Limit**: ${formatNumber(itemDetails.ge_limit)}\n 
-                        **Max Profit**: ${formatNumber(Math.abs((HighestOf(twelveHour.avg, oneHour.avg) - LowestOf(itemLatest.high, itemLatest.low))*itemDetails.ge_limit))} \n
+                        **Volume**: ${formatNumber(itemDetails.volume)} | **Limit**: ${formatNumber(itemDetails.limit)}\n 
+                        **Max Profit**: ${formatNumber(Math.abs((HighestOf(twelveHour.avg, oneHour.avg) - LowestOf(itemLatest.high, itemLatest.low))*itemDetails.limit))} \n
                         **GE**: ${officialGE.currentPrice} \n
                         **12hr**: ${formatNumber(twelveHour.avg)} | **1hr**: ${formatNumber(oneHour.avg)} \n \n
                         **Insta Buy**: ${formatNumber(itemLatest.high)} <t:${(itemLatest.hight)}:R> \n
                         **Insta Sell**: ${formatNumber(itemLatest.low)} <t:${(itemLatest.lowt)}:R> \n
-
                         ` )
                         .setColor('#03fcdb')
-                        .setThumbnail(image_url)
+                        .setThumbnail(itemDetails.img_url)
                         .addFields(
                             { name: '\u200B', value: '\u200B' },
                         )
